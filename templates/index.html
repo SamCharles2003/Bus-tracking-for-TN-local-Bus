@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nearest Bus Stop</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 50px;
+    }
+    #output {
+      margin-top: 20px;
+      font-size: 1.2em;
+      color: green;
+    }
+    #error {
+      color: red;
+      margin-top: 20px;
+    }
+    #findLocation {
+      padding: 12px 24px;
+      font-size: 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    #findLocation:active {
+      transform: scale(0.95);
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+    }
+    #findLocation::after {
+      content: '';
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: #ddd;
+      transition: background-color 0.3s;
+    }
+    #findLocation.connecting::after {
+      background-color: #FFD700; /* Yellow for connecting */
+      animation: pulse 1s infinite;
+    }
+    #findLocation.success::after {
+      background-color: violet; /* Green for success */
+    }
+    #findLocation.error::after {
+      background-color: #f44336; /* Red for error */
+    }
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+  </style>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+  <h1>Find the Nearest Bus Stop</h1>
+  <button id="findLocation">Find My Location</button>
+  <div id="output">Your nearest bus stop will appear here.</div>
+  <div id="error"></div>
+
+  <script>
+    document.getElementById("findLocation").addEventListener("click", () => {
+      const button = document.getElementById("findLocation");
+
+      if (navigator.geolocation) {
+        const getLocationAndSend = () => {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const lat = position.coords.latitude;
+              const lng = position.coords.longitude;
+
+              // Update button state to connecting
+              button.className = "connecting";
+
+              // Send location to backend using $ajax
+              $.ajax({
+                url: "/find-nearest",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ latitude: lat, longitude: lng }),
+                success: (data) => {
+                  if (data.success) {
+                    $("#output").text(`Nearest Bus Stop: ${data.place}`);
+                    $("#error").text("");
+                    button.className = "success";
+                  } else {
+                    $("#error").text("No nearby bus stops found.");
+                    $("#output").text("");
+                    button.className = "error";
+                  }
+                },
+                error: () => {
+                  $("#error").text("Error connecting to the server.");
+                  $("#output").text("");
+                  button.className = "error";
+                },
+              });
+            },
+            (error) => {
+              let errorMessage = "Unable to retrieve location.";
+              if (error.code === 1) {
+                errorMessage = "Permission denied. Please allow location access.";
+              } else if (error.code === 2) {
+                errorMessage = "Position unavailable. Try again later.";
+              } else if (error.code === 3) {
+                errorMessage = "Location request timed out.";
+              }
+              $("#error").text(errorMessage);
+              $("#output").text("");
+              button.className = "error";
+            }
+          );
+        };
+
+        // Call the function every 10 seconds (adjust as needed)
+        getLocationAndSend(); // Call immediately
+        setInterval(getLocationAndSend, 10000); // Repeatedly call every 10 seconds
+      } else {
+        $("#error").text("Geolocation is not supported by your browser.");
+        button.className = "error";
+      }
+    });
+  </script>
+</body>
+</html>
