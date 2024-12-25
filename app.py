@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify, render_template
-from flask_ngrok import run_with_ngrok
 import pymysql
 import pymysqlpool
 import math
