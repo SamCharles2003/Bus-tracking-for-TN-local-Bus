@@ -68,7 +68,11 @@ def find_nearest():
                 nearest_place = place
 
         if nearest_place:
-            return jsonify({"success": True, "place": nearest_place})
+            return jsonify({
+                "success": True,
+                "place": nearest_place,
+                "distance_km": round(min_distance, 2)  # Include the distance in the response
+            })
 
         else:
             return jsonify({"success": False, "message": "No nearby bus stops found."})
@@ -98,7 +102,11 @@ def find_nearest():
                     nearest_place = place
 
             if nearest_place:
-                return jsonify({"success": True, "place": nearest_place})
+                return jsonify({
+                    "success": True,
+                    "place": nearest_place,
+                    "distance_km": round(min_distance, 2)  # Include the distance in the response
+                })
 
             else:
                 return jsonify({"success": False, "message": "No nearby bus stops found."})
@@ -111,4 +119,4 @@ def find_nearest():
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(host='0.0.0.0', debug=True, port=5500)
