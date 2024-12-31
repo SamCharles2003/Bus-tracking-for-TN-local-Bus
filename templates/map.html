@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TNSTC Bus Locator</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+    <style>
+        :root {
+            --primary-color: #1a73e8;
+            --secondary-color: #34a853;
+            --accent-color: #ea4335;
+            --background-color: #f8f9fa;
+            --text-color: #202124;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), #0d47a1);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            box-shadow: 0 2px 8px var(--shadow-color);
+            position: relative;
+            z-index: 1000;
+        }
+
+        .container {
+            padding: 1rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        #map {
+            height: 85vh;
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px var(--shadow-color);
+            transition: box-shadow 0.3s ease;
+        }
+
+        /* Google Maps-style controls container */
+        .map-controls {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* Control button group */
+        .control-group {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .control-button {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            background: white;
+            border: none;
+            padding: 8px 12px;
+            width: 100%;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-color);
+            transition: background-color 0.2s ease;
+        }
+
+        .control-button:not(:last-child) {
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .control-button:hover {
+            background-color: #f1f3f4;
+        }
+
+        .control-button:active {
+            background-color: #e8e8e8;
+        }
+
+        /* Control button icons */
+        .control-button span {
+            font-size: 18px;
+        }
+
+        .bus-info {
+            padding: 1.2rem;
+            max-width: 320px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        .bus-info h3 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary-color);
+            font-size: 1.2rem;
+        }
+
+        .bus-info p {
+            margin: 0.6rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .bus-info strong {
+            color: var(--text-color);
+        }
+
+        .custom-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px var(--shadow-color);
+            transition: transform 0.2s ease;
+        }
+
+        .custom-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .icon-label {
+            position: relative;
+            padding: 0.3rem;
+        }
+
+        .icon-label span {
+            position: absolute;
+            bottom: -1.8rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            box-shadow: 0 1px 4px var(--shadow-color);
+        }
+
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        .leaflet-popup-content {
+            margin: 0;
+            padding: 0;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                font-size: 1.2rem;
+                padding: 0.8rem;
+            }
+
+            #map {
+                height: 75vh;
+            }
+
+            .map-controls {
+                right: 8px;
+                top: 8px;
+            }
+
+            .control-button {
+                padding: 6px 10px;
+                font-size: 13px;
+            }
+
+            .bus-info {
+                max-width: 280px;
+            }
+        }
+
+        .map-type-control {
+            position: absolute;
+            left: 10px;
+            bottom: 10px;
+            z-index: 1000;
+        }
+
+        .map-type-button {
+            background: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .map-type-menu {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            margin-top: 8px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            display: none;
+            overflow: hidden;
+        }
+
+        .map-type-menu.active {
+            display: block;
+        }
+
+        .map-type-option {
+            padding: 8px 16px;
+            min-width: 120px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .map-type-option:hover {
+            background-color: #f1f3f4;
+        }
+
+        .map-type-option.active {
+            background-color: #e8f0fe;
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">TNSTC Bus Locator</div>
+    <div class="container">
+        <div id="map">
+            <!-- Map controls inside the map -->
+            <div class="map-controls">
+                <div class="control-group">
+                    <button class="control-button" onclick="getUserLocation()">
+                        <span>📍</span> 
+                    </button>
+                    <button class="control-button" onclick="nearbybusstand()">
+                        <span>🚏</span> 
+                    </button>
+                    
+                </div>
+            </div>
+
+    <div class="map-type-control">
+        <button class="map-type-button" onclick="toggleMapTypeMenu()">
+            <span>🗺️</span> Map Type
+        </button>
+        <div class="map-type-menu" id="mapTypeMenu">
+            <div class="map-type-option active" onclick="changeMapType('streets')">
+                <span>🗺️</span> Streets
+            </div>
+            <div class="map-type-option" onclick="changeMapType('satellite')">
+                <span>🛰️</span> Satellite
+            </div>
+            <div class="map-type-option" onclick="changeMapType('terrain')">
+                <span>⛰️</span> Terrain
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+</div
+
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script>
+
+        let currentLayer;
+        const mapLayers = {
+            streets: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }),
+            satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19,
+                attribution: '© Esri'
+            }),
+            terrain: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                maxZoom: 17,
+                attribution: '© OpenTopoMap contributors'
+            })
+        };
+
+        currentLayer = mapLayers.streets;
+        // Initialize map
+        const map = L.map('map', {
+            center: [8.971373, 77.301637],
+            zoom: 13,
+            layers: [mapLayers.streets]
+        });
+        
+        const markers = {};
+        let userMarker = null;
+        let busStopMarker = null;
+        let routePolyline = null;
+
+        function toggleMapTypeMenu() {
+            const menu = document.getElementById('mapTypeMenu');
+            menu.classList.toggle('active');
+        }
+        function changeMapType(type) {
+            // Remove current layer
+            map.removeLayer(currentLayer);
+            
+            // Add new layer
+            currentLayer = mapLayers[type];
+            map.addLayer(currentLayer);
+            
+            // Update active state in menu
+            document.querySelectorAll('.map-type-option').forEach(option => {
+                option.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+            
+            // Close menu
+            document.getElementById('mapTypeMenu').classList.remove('active');
+        }
+
+        document.addEventListener('click', function(event) {
+            const menu = document.getElementById('mapTypeMenu');
+            const button = event.target.closest('.map-type-button');
+            if (!button && menu.classList.contains('active')) {
+                menu.classList.remove('active');
+            }
+        });
+        
+        // Define custom icons
+        const busIcon = L.divIcon({
+            className: 'custom-icon',
+            html: '🚍',
+            iconSize: [30, 30]
+        });
+        const busStandIcon = L.divIcon({
+            className: 'custom-icon',
+            html: '🚉',
+            iconSize: [30, 30]
+        });
+        const userIcon = L.divIcon({
+            className: 'custom-icon',
+            html: '📍',
+            iconSize: [30, 30]
+        });
+
+        const stopIcon = L.divIcon({
+            className: 'custom-icon',
+            html: '🚏',
+            iconSize: [30, 30]
+        });
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        function createCustomIcon(emoji, type) {
+            return L.divIcon({
+                className: 'custom-icon',
+                html: `<div class="icon-label">${emoji}<span>${type}</span></div>`,
+                iconSize: [50, 50]
+            });
+        }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        function drawBusRoute(routePoints) {
+            if (routePolyline) {
+                map.removeLayer(routePolyline);
+            }
+
+            const waypoints = [
+                [routePoints.start.lat, routePoints.start.lng],
+                ...routePoints.via.map(point => [point.lat, point.lng]),
+                [routePoints.end.lat, routePoints.end.lng]
+            ];
+            console.log(waypoints);
+            routePolyline = L.polyline(waypoints, {
+                color: '#007bff',
+                weight: 4,
+                opacity: 0.8,
+                lineJoin: 'round'
+            }).addTo(map);
+
+            // Add start and end markers
+
+            map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
+        }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+function deleteBusRoute() {
+    if (routePolyline) {
+    
+        map.removeLayer(routePolyline);
+        routePolyline = null;
+    }
+}
+
+document.addEventListener('click', function(event) {deleteBusRoute();});
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+function fetchAndUpdateBusDetails(busNo, marker) {
+    $.ajax({
+        url: `/get-bus-details-interval/${busNo}`,
+        method: 'GET',
+        success: (data) => {
+            if (data.success) {
+                const { bus_details } = data;
+                const popupContent = `
+                    <div class="bus-info">
+                        <h3>Bus ${bus_details.bus_no}</h3>
+                        <p><strong>Route No:</strong> ${bus_details.route_no || 'N/A'}</p>
+                        <p><strong>Route:</strong> ${bus_details.route_name || 'N/A'}</p>
+                        <p><strong>Speed:</strong> ${(bus_details.avg_speed || 0).toFixed(1)} km/h</p>
+                        <p><strong>From:</strong> ${bus_details.departure || 'N/A'}</p>
+                        <p><strong>To:</strong> ${bus_details.arrival || 'N/A'}</p>
+                        <p><strong>Departure:</strong> ${bus_details.departure_time}</p>
+                        <p><strong>Next Stop:</strong> ${bus_details.next_stop || 'N/A'}</p>
+                        <p><strong>ETA:</strong> ${bus_details.eta || 'N/A'}</p>
+                    </div>
+                `;
+                
+                const existingPopup = marker.getPopup();
+                if (existingPopup) {
+                    // Update the content of the existing popup
+                    existingPopup.setContent(popupContent);
+                } else {
+                    // Create and bind a new popup if it doesn't exist
+                    const popup = L.popup({
+                        maxWidth: 300,
+                        autoPan: true,
+                        autoClose: false,   // Make sure this is false to prevent auto closing
+                        closeOnClick: false // Prevent closing when clicking elsewhere
+                    }).setContent(popupContent);
+
+                    marker.bindPopup(popup).openPopup();
+                }
+            }
+        },
+        error: (error) => {
+            console.error('AJAX error fetching bus details for interval:', error);
+        }
+    });
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+function onBusMarkerClick(busNo) {
+    console.log('Bus marker clicked:', busNo);
+    $.ajax({
+        url: `/get-bus-details/${busNo}`,
+        method: 'GET',
+        success: (data) => {
+            if (data.success) {
+                const { bus_details, route_points } = data;
+                // Verify marker exists
+                if (!markers[busNo]) {
+                    console.error('Marker not found for bus:', busNo);
+                    return;
+                }
+
+                const marker = markers[busNo];
+
+                // Draw route if route points are available
+                if (route_points && route_points.start && route_points.end) {
+                    drawBusRoute(route_points);
+                } else {
+                    console.error('Invalid route points:', route_points);
+                }
+
+                // Set interval to fetch bus details every 30 seconds
+                setInterval(() => {
+                    // Assuming `busNo` and `marker` are available in this scope
+                    fetchAndUpdateBusDetails(busNo, marker);
+                }, 300);
+            } else {
+                console.error('Error in response:', data.error);
+            }
+        },
+        error: (error) => {
+            console.error('AJAX error fetching bus details:', error);
+        }
+    });
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+function addHoverEffect(marker, bus_details) {
+    marker.on('mouseover', () => {
+        const info = `Route No: ${bus_details.route_no || 'N/A'}<br>Route Name: ${bus_details.route_name || 'N/A'}`;
+        marker.bindPopup(info, { offset: L.point(0, -20) }).openPopup();
+    });
+
+    marker.on('mouseout', () => {
+        marker.closePopup();
+    });
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Update the marker creation in updateMarkers()
+function updateMarkers() {
+    $.ajax({
+        url: '/get-markers',
+        method: 'GET',
+        success: (data) => {
+            console.log('Received markers data:', data);
+
+            if (data.success && data.markers.length > 0) {
+                data.markers.forEach(marker => {
+                    console.log('Processing marker:', marker);
+
+                    if (!markers[marker.name]) {
+                        console.log('Creating new marker for:', marker.name);
+                        const newMarker = L.marker([marker.lat, marker.lng], {
+                            icon: busIcon,
+                            riseOnHover: true
+                        });
+
+                        // Bind click event using addEventListener
+                        newMarker.addEventListener('click', function() {
+                            console.log('Marker clicked:', marker.name);
+                            onBusMarkerClick(marker.name);
+                        });
+
+                        addHoverEffect(newMarker, marker); 
+                        newMarker.addTo(map);
+                        markers[marker.name] = newMarker;
+                    } else {
+                        console.log('Updating position for:', marker.name);
+                        markers[marker.name].setLatLng([marker.lat, marker.lng]);
+                    }
+                });
+            } else {
+                console.log('No markers data or success false:', data);
+            }
+        },
+        error: (error) => {
+            console.error('Error fetching markers:', error);
+        }
+    });
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        function nearbybusstand() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const { latitude, longitude } = position.coords;
+
+                    if (userMarker) {
+                        userMarker.setLatLng([latitude, longitude]);
+                    } else {
+                        //userMarker = L.marker([latitude, longitude], { icon: userIcon }).addTo(map);
+                    }
+
+                    //map.setView([latitude, longitude], 15);
+
+                    $.ajax({
+                        url: '/find-nearest',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ latitude, longitude }),
+                        success: (data) => {
+                            if (data.success) {
+                                const { place, distance_km, coordinates } = data;
+                                const { lat, lng } = coordinates[0];
+                                console.log('Nearest bus stop:', place, distance_km, lat,lng);
+                                const stopContent = `
+                                    <div class="bus-info">
+                                        <h3>${place}</h3>
+                                        <p><strong>Distance:</strong> ${distance_km.toFixed(2)} km</p>
+                                    </div>
+                                `;
+                                console.log(lat,lng);
+                                
+                                if (busStopMarker) {
+                                    busStopMarker.setLatLng([lat, lng]);
+                                } else {
+                                    busStopMarker = L.marker([lat, lng], { icon: busStandIcon })
+                                        .addTo(map);
+                                }
+                                busStopMarker.bindPopup(stopContent).openPopup();
+
+                                busStopMarker.on('mouseover', () => {
+                                    const info = `${place}`;
+                                    busStopMarker.bindPopup(info, { offset: L.point(0, -20) }).openPopup();
+                                });
+                            
+                                busStopMarker.on('mouseout', () => {
+                                    busStopMarker.closePopup();
+                                });
+                            } else {
+                                alert(data.message || "No nearby bus stops found.");
+                            }
+                        },
+                        error: (error) => {
+                            console.error('Error finding nearest bus stop:', error);
+                        }
+                    });
+                }, error => {
+                    alert("Unable to fetch your location. Please ensure location services are enabled.");
+                });
+            } 
+            else {
+                alert("Geolocation is not supported by this browser.");
+            }
+        }
+
+        // Initialize markers and start updates
+        updateMarkers();
+        setInterval(updateMarkers, 900);
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+async function getUserLocation() {
+    try {
+        const position = await new Promise((resolve, reject) => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    resolve,
+                    reject
+                );
+            } else {
+                reject("Geolocation is not supported by this browser.");
+            }
+        });
+
+        const { latitude, longitude } = position.coords;
+
+        // Update user marker on the map
+        if (userMarker) {
+            userMarker.setLatLng([latitude, longitude]);
+        } else {
+            userMarker = L.marker([latitude, longitude], { icon: userIcon }).addTo(map);
+        }
+
+        // Center the map on the user's location
+        map.setView([latitude, longitude], 15);
+
+        userMarker.on('mouseover', () => {
+            const info = `You are here`;
+            userMarker.bindPopup(info, { offset: L.point(0, -20) }).openPopup();
+        });
+    
+        userMarker.on('mouseout', () => {
+            userMarker.closePopup();
+        });
+
+        return { latitude, longitude }; // Return the coordinates for further use
+    } catch (error) {
+        alert(error instanceof Error ? error.message : error);
+        throw error; // Re-throw error for handling in calling function
+    }
+}
+
+
+    </script>
+</body>
+</html>
