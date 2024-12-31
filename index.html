@@ -41,7 +41,7 @@
 
         function upload(latitude, longitude, speed,bus_no) {
             $.ajax({
-                url: '/bus_loc',
+                url: 'https://bus-tracking-for-tn-local-bus.onrender.com/bus_loc',
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ 
