@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Speed Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .card {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Current Location</h2>
+        <p>Latitude: <span id="latitude">--</span></p>
+        <p>Longitude: <span id="longitude">--</span></p>
+    </div>
+    <div class="card">
+        <h2>Speed</h2>
+        <p>Current Speed: <span id="speed">--</span> km/h</p>
+    </div>
+    <div id="error" class="error"></div>
+
+    <script>
+        const latitudeElement = document.getElementById('latitude');
+        const longitudeElement = document.getElementById('longitude');
+        const speedElement = document.getElementById('speed');
+        const errorElement = document.getElementById('error');
+        const nearestElement = document.getElementById('nearest');
+        const bus_no = "TN-72-AN-2538"
+
+        function upload(latitude, longitude, speed,bus_no) {
+            $.ajax({
+                url: '/bus_loc',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ 
+                    latitude, 
+                    longitude,
+                    speed,
+                    bus_no 
+                }),
+                success: (data) => {
+                    nearestElement.textContent = data.location || 'Location not found';
+                },
+                error: (err) => {
+                    errorElement.textContent = 'Error finding nearest location';
+                }
+            });
+        }
+
+        function handleSuccess(position) {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            const speed = position.coords.speed ? (position.coords.speed * 3.6) : 0;
+            
+            latitudeElement.textContent = latitude.toFixed(6);
+            longitudeElement.textContent = longitude.toFixed(6);
+            speedElement.textContent = speed.toFixed(1);
+
+            upload(latitude, longitude, speed, bus_no);
+        }
+
+        function handleError(error) {
+            errorElement.textContent = `Error: ${error.message}`;
+        }
+
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                handleSuccess,
+                handleError,
+                {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 0
+                }
+            );
+        } else {
+            errorElement.textContent = 'Geolocation not supported';
+        }
+    </script>
+</body>
+</html>
