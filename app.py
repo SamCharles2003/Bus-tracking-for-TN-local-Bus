@@ -2,6 +2,7 @@ from flask import Flask, render_template, jsonify, request
 import psycopg2
 import math
 from highwaypoints import fetch_route_coordinates_with_via_dict as frcv
+from highwaypoints import update_bus_location as ubl
 
 app = Flask(__name__)
 
@@ -292,6 +293,20 @@ def get_bus_details_interval(bus_no):
     except Exception as e:
         print(e, "MAP Tester")
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route("/bus_loc", methods=["POST"])
+def bus_loc():
+    try:
+        data = request.json
+        lat = data.get("latitude")
+        lng = data.get("longitude")
+        avgSpeed = data.get("speed")
+        bus_no = data.get("bus_no")
+        ubl(bus_no, lat,lng, avgSpeed)  # Fixed latlng variable
+        return jsonify({"success": True, "data": 200})  # Fixed true -> True
+    except Exception as e:
+        print("Error: ", e)
+        return jsonify({"success": False, "error": str(e)}), 500  # Added error response
 
 
 if __name__ == '__main__':
