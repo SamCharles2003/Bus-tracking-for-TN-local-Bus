@@ -3,7 +3,7 @@ import psycopg2
 import time
 import random
 import math
-import bearing_sign_test as bst
+
 
 # Remote PostgreSQL Database Configuration
 remote_db_config = {
