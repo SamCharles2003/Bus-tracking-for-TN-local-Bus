@@ -1,18 +1,13 @@
 import requests
-import psycopg2
+import pymysql
 import time
 import random
 import math
+from config import db_config
+
+# Database Configuration
 
 
-# Remote PostgreSQL Database Configuration
-remote_db_config = {
-    "host": "dpg-ctparopopnds73fnhhg0-a.oregon-postgres.render.com",
-    "user": "sam_db",
-    "password": "hJTmmPb0kiJHHhFfQtILOrtR41O8sVV4",
-    "dbname": "bus_tracking",
-    "port": 5432
-}
 
 def fetch_route_coordinates_with_via_dict(start_lat, start_lng, end_lat, end_lng, via_points):
     """
@@ -49,9 +44,12 @@ def fetch_route_coordinates_with_via_dict(start_lat, start_lng, end_lat, end_lng
         coordinates = [{'lat': lat, 'lng': lng} for lng, lat in route]  # Convert to {'lat': value, 'lng': value}
         return coordinates
 
+
     except Exception as e:
         print(f"Error fetching route coordinates: {e}")
         return []
+
+
 
 def fetch_route_coordinates_with_via(start_lat, start_lng, end_lat, end_lng, via_points):
     """
@@ -92,7 +90,9 @@ def fetch_route_coordinates_with_via(start_lat, start_lng, end_lat, end_lng, via
         print(f"Error fetching route coordinates: {e}")
         return []
 
+
 def update_bus_location(bus_no, lat, lng, avg_speed):
+
     """
     Update the bus location and average speed in the database.
 
@@ -104,11 +104,11 @@ def update_bus_location(bus_no, lat, lng, avg_speed):
     global cursor, coordinates, connection, previous_location
     try:
         # Connect to the database
-        connection = psycopg2.connect(**remote_db_config)
+        connection = pymysql.connect(**db_config)
         cursor = connection.cursor()
 
-        cursor.execute('SELECT latitude, longitude FROM bus_info WHERE bus_no = %s', (bus_no,))
-        previous_location = cursor.fetchall()
+        cursor.execute('SELECT latitude, longitude FROM bus_info WHERE bus_no= %s',args=(bus_no,))
+        previous_location=cursor.fetchall()
         # SQL to update the bus location and speed
         sql = """
         UPDATE bus_info
@@ -119,8 +119,9 @@ def update_bus_location(bus_no, lat, lng, avg_speed):
         connection.commit()
         print(f"Updated {bus_no} location to Latitude: {lat}, Longitude: {lng}, Avg Speed: {avg_speed} km/h")
 
-    except psycopg2.Error as e:
+    except pymysql.Error as e:
         print(f"Error updating database: {e}")
+
 
 def haversine(lat1, lon1, lat2, lon2):
     dLat = (float(lat2) - float(lat1)) * math.pi / 180.0
@@ -133,29 +134,30 @@ def haversine(lat1, lon1, lat2, lon2):
     # apply formulae
     a = (pow(math.sin(dLat / 2), 2) +
          pow(math.sin(dLon / 2), 2) *
-         math.cos(lat1) * math.cos(lat2))
+         math.cos(lat1) * math.cos(lat2));
     rad = 6371
     c = 2 * math.asin(math.sqrt(a))
     return rad * c
 
-def find_nearest(user_lat, user_lng, bus_no):
+
+def find_nearest(user_lat,user_lng,bus_no):
     try:
         # Fetch the "via" route, departure, arrival, and next stop for the given bus number
         cursor.execute("SELECT via, arrival FROM bus_info WHERE bus_no = %s", (bus_no,))
         paths = cursor.fetchone()
         via = paths[0].split(',')  # Split the 'via' string into individual places
         arrival = paths[1]  # Arrival stop
-        all_stopings = via + [arrival]
+        all_stopings =  via + [arrival]
         for bus_Stand in all_stopings:
-            prox_dist = {}
+            prox_dist={}
             cursor.execute("SELECT latitude, longitude FROM bus_stops WHERE place = %s", (bus_Stand,))
             bus_Stand_Coordinates = cursor.fetchall()
-            for lat, lng in bus_Stand_Coordinates:
-                distance = haversine(user_lat, user_lng, lat, lng)
+            for lat,lng in bus_Stand_Coordinates:
+                distance=haversine(user_lat,user_lng,lat,lng)
                 if 0 < distance < 1:
                     return bus_Stand
     except Exception as e:
-        print("FIND NEAREST ()", e)
+        print("FIND NEAREST ()",e)
 
 def next_stop(user_lat, user_lng, bus_no):
     global cursor
@@ -178,20 +180,22 @@ def next_stop(user_lat, user_lng, bus_no):
         print(f"Error in next_stop: {e}")
 
 def place_query(place):
-    cursor.execute("SELECT latitude, longitude FROM bus_stops WHERE place = %s", (place,))
+    cursor.execute("SELECT latitude,longitude FROM bus_stops WHERE place = %s", (place,))
     coords = cursor.fetchone()
     return coords
+
+
 
 from datetime import datetime, timedelta
 
 def calculate_eta(bus_no):
     # Fetch departure time and average speed from the database
-    cursor.execute("SELECT arrival, departure, avg_speed, departure_time FROM bus_info WHERE bus_no = %s", (bus_no,))
+    cursor.execute("SELECT arrival, departure, avg_Speed, departure_time FROM bus_info WHERE bus_no = %s", (bus_no,))
     paths = cursor.fetchone()
     arrival_coords = place_query(paths[0])
     depart_coords = place_query(paths[1])
     avg_speed = paths[2]
-    departure_time_str = str(paths[3])
+    departure_time_str=str(paths[3])
     distance = haversine(arrival_coords[0], arrival_coords[1], depart_coords[0], depart_coords[1])
     time_in_hours = distance / float(avg_speed)
     hours = int(time_in_hours)
@@ -204,6 +208,10 @@ def calculate_eta(bus_no):
     connection.commit()
 
     print(f"Updated ETA for bus {bus_no} to: {new_eta_str}")
+
+
+
+
 
 if __name__ == "__main__":
     # Starting and ending locations
@@ -228,7 +236,7 @@ if __name__ == "__main__":
         for lat, lng in route_coordinates:
             avg_speed = random.uniform(40, 60)  # Generate a realistic average speed in km/h
             update_bus_location(bus_no, lat, lng, avg_speed)
-            next_stop(lat, lng, bus_no)
+            next_stop(lat,lng,bus_no)
             calculate_eta(bus_no)
             time.sleep(1)  # Wait 1 second before updating the next location
     else:
