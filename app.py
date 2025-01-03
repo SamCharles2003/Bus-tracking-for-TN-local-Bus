@@ -1,23 +1,18 @@
 from flask import Flask, render_template, jsonify, request
-import psycopg2
+import pymysql
 import math
 from highwaypoints import fetch_route_coordinates_with_via_dict as frcv
-from highwaypoints import update_bus_location as ubl
-
+from config import db_config
 app = Flask(__name__)
 
 # Remote PostgreSQL Database Configuration
-remote_db_config = {
-    "host": "dpg-ctparopopnds73fnhhg0-a.oregon-postgres.render.com",
-    "user": "sam_db",
-    "password": "hJTmmPb0kiJHHhFfQtILOrtR41O8sVV4",
-    "dbname": "bus_tracking",
-    "port": 5432
-}
+
+
+
 
 
 def get_db_connection():
-    return psycopg2.connect(**remote_db_config)
+    return pymysql.connect(**db_config)
 
 
 @app.route('/')
@@ -109,7 +104,7 @@ def find_nearest():
             if distance < min_distance:
                 min_distance = distance
                 nearest_place = place
-                cursor.execute("SELECT latitude, longitude FROM bus_stops WHERE place = %s", (nearest_place,))
+                cursor.execute("SELECT latitude, longitude FROM bus_stops WHERE `place`= %s", args=(nearest_place,))
                 route = cursor.fetchall()
                 print(route)
                 coordinates = [{'lat': float(lat), 'lng': float(lng)} for lat, lng in route]
@@ -118,7 +113,7 @@ def find_nearest():
             return jsonify({
                 "success": True,
                 "place": nearest_place,
-                "distance_km": round(min_distance, 2),
+                "distance_km": round(min_distance, 2),  # Include the distance in the response
                 "coordinates": coordinates
             })
 
@@ -131,7 +126,7 @@ def find_nearest():
         try:
             global remote_conn
             print("Reconnecting....")
-            remote_conn = psycopg2.connect(**remote_db_config)
+            remote_conn = pymysql.connect(**db_config)
             cursor = remote_conn.cursor()
             # After reconnecting, retry fetching data
             cursor.execute("SELECT place, latitude, longitude FROM bus_stops")
@@ -147,7 +142,7 @@ def find_nearest():
                 if distance < min_distance:
                     min_distance = distance
                     nearest_place = place
-                    cursor.execute("SELECT latitude, longitude FROM bus_stops WHERE place = %s", (nearest_place,))
+                    cursor.execute("SELECT latitude, longitude FROM bus_stops WHERE `place`= %s", args=(nearest_place,))
                     route = cursor.fetchall()
                     print(route)
                     coordinates = [{'lat': float(lat), 'lng': float(lng)} for lat, lng in route]
@@ -156,7 +151,7 @@ def find_nearest():
                 return jsonify({
                     "success": True,
                     "place": nearest_place,
-                    "distance_km": round(min_distance, 2),
+                    "distance_km": round(min_distance, 2),  # Include the distance in the response
                     "coordinates": coordinates
                 })
 
@@ -219,7 +214,6 @@ def get_bus_details(bus_no):
             via_point = cursor.fetchone()
             if via_point:
                 via_coordinates.append([float(via_point[0]), float(via_point[1])])
-
         route_points = {
             'start': {
                 'lat': float(start_coords[0]),
@@ -255,6 +249,7 @@ def get_bus_details(bus_no):
         return jsonify({'success': False, 'error': str(e)})
 
 
+
 @app.route('/get-bus-details-interval/<bus_no>')
 def get_bus_details_interval(bus_no):
     try:
@@ -273,6 +268,7 @@ def get_bus_details_interval(bus_no):
 
         if not bus_info:
             return jsonify({'success': False, 'error': 'Bus not found'})
+
 
         response = {
             'success': True,
@@ -294,19 +290,7 @@ def get_bus_details_interval(bus_no):
         print(e, "MAP Tester")
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route("/bus_loc", methods=["POST"])
-def bus_loc():
-    try:
-        data = request.json
-        lat = data.get("latitude")
-        lng = data.get("longitude")
-        avgSpeed = data.get("speed")
-        bus_no = data.get("bus_no")
-        ubl(bus_no, lat,lng, avgSpeed)  # Fixed latlng variable
-        return jsonify({"success": True, "data": 200})  # Fixed true -> True
-    except Exception as e:
-        print("Error: ", e)
-        return jsonify({"success": False, "error": str(e)}), 500  # Added error response
+
 
 
 if __name__ == '__main__':
